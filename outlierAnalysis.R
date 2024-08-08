@@ -13,7 +13,7 @@ library(tidyr)
 # Load the Excel file
 file_path <- "C:\\Users\\sayde.jude\\OneDrive - Currie & Brown\\Desktop\\Current Labor Rate Database (Projects).xlsx"
 labor_rate <- read_excel(file_path, sheet = "Labor", range = "A1:AG11208", col_names = TRUE)
-
+str(labor_rate)
 # Filter and select the required columns
 engineer <- labor_rate %>%
   filter(Position == "Engineer") %>%                                 # Filter column 1 for "Engineer"
@@ -26,12 +26,12 @@ engineer <- labor_rate %>%
   drop_na(Year)                                                      # Drop rows with NA in the "Year" column
 
 # Print the resulting table
-print(engineer)
+print(n=500, engineer)
 
 #-------------------Bill ranges of uncleaned data
 
 # Calculate the range of Bill Rates for each unique combination
-bill_rate_ranges <- engineer%>%
+bill_rate_ranges_before <- engineer%>%
   group_by(Level, Time, Year) %>%  # Group by Level, Time, and Year
   summarize(
     Min_Bill_Rate = min(`Bill Rate`, na.rm = TRUE),
@@ -40,48 +40,38 @@ bill_rate_ranges <- engineer%>%
   )
 
 # Print the range of Bill Rates
-print(n=114, bill_rate_ranges)
+print(n=114, bill_rate_ranges_before)
 
-#-----------------------Looking at side by side box plots of engineers in 2024
-# Create side-by-side box plots in 2024
-ggplot(subset(engineer, Year == 2024), aes(x = interaction(Level, Time), y = `Bill Rate`)) +
-  geom_boxplot(aes(fill = Time)) +
-  labs(title = "Box Plots of Bill Rates for Engineers in 2024",
-       x = "Level and Time",
-       y = "Bill Rate") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-#--------------------Find 5% and 95% quartiles for the neccessary subsets
-
-# Calculate the 5% and 95% quartiles for each unique combination
+# Calculate percentiles for groups with more than two data points
 percentiles <- engineer %>%
-  group_by(Level, Time, Year) %>%   # Group by Level, Time, State, and Year
+  group_by(Level, Time, Year) %>%
   summarize(
-    `5th_Percentile` = quantile(`Bill Rate`, 0.05, na.rm = TRUE),   # 5th percentile
-    `95th_Percentile` = quantile(`Bill Rate`, 0.95, na.rm = TRUE)    # 95th percentile
+    Count = n(),
+    `5th_Percentile` = if_else(Count > 2, quantile(`Bill Rate`, 0.05, na.rm = TRUE), NA_real_),
+    `95th_Percentile` = if_else(Count > 2, quantile(`Bill Rate`, 0.95, na.rm = TRUE), NA_real_),
+    .groups = 'drop'
   )
 
-# Print the percentiles table
-print(n=200,percentiles)
-
-#--------------------Remove any data points outside of that quartile range
-
-# Join the percentiles back with the original data to filter out outliers
+# Join the percentiles back with the original data
 filtered_data <- engineer %>%
-  left_join(percentiles, by = c("Level", "Time", "Year")) %>%
-  filter(
-    `Bill Rate` >= `5th_Percentile` & `Bill Rate` <= `95th_Percentile`
+  left_join(percentiles, by = c("Level", "Time", "Year")) %>%             #left_join(percentiles, by = c("Level", "Time", "Year")) merges 
+  filter(                                                                 #engineer with percentiles based on matching values in the columns
+    # Include all data points for groups with 2 or fewer data points      #Level, Time, and Year. The left_join ensures all rows
+    is.na(`5th_Percentile`) |                                             #from engineer are kept, and the matching rows from percentiles are added.
+      # For groups with more than 2 data points, filter based on percentiles
+      (`Bill Rate` >= `5th_Percentile` & `Bill Rate` <= `95th_Percentile`)
   ) %>%
-  select(-`5th_Percentile`, -`95th_Percentile`)  # Drop percentile columns if no longer needed
+  select(-`5th_Percentile`, -`95th_Percentile`)                           # Drop percentile columns if no longer needed
 
-# Print the filtered data
+# Print the resulting table
 print(filtered_data)
 
 
 #-------------------Bill ranges of cleaned data 
 
 # Calculate the range of Bill Rates for each unique combination
-bill_rate_ranges <- filtered_data %>%
+bill_rate_ranges_after <- filtered_data %>%
   group_by(Level, Time, Year) %>%  # Group by Level, Time, and Year
   summarize(
     Min_Bill_Rate = min(`Bill Rate`, na.rm = TRUE),
@@ -90,7 +80,10 @@ bill_rate_ranges <- filtered_data %>%
   )
 
 # Print the range of Bill Rates
-print(bill_rate_ranges)
+print(n=200,bill_rate_ranges_after)
+
+
+
 
 
 
