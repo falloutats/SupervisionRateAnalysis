@@ -92,7 +92,7 @@ Tmax <- summary(PM_national_Reg[,9])[5] + (1.5*PM_national_Reg_IQR)
 PM_national_Reg[which(PM_national_Reg[,9] < Tmin | PM_national_Reg[,9] > Tmax),]
 
 #Find outliers using Chi-square test
-chisq.out.test(PM_national_Reg_General[,9])
+#chisq.out.test(PM_national_Reg_General[,9])
 
 
 ###################################################################################################################
@@ -117,8 +117,12 @@ for (level in levels_groups) {
   subset_level <- PM_national_Reg[PM_national_Reg[,2] == level, ]
   
   # Calculate the min and max salary for the current trade group
-  min_salary[[level]] <- min(subset_level[,9])
-  max_salary[[level]] <- max(subset_level[,9])
+  
+  #min_salary[[level]] <- min(subset_level[,9])
+  #max_salary[[level]] <- max(subset_level[,9])
+  
+  min_salary[[level]] <- quantile(subset_level$`Bill Rate`, probs = 0.075)
+  max_salary[[level]] <- quantile(subset_level$`Bill Rate`, probs = 0.925)
 }
 
 min_salary_df <- data.frame(MinSalary = unlist(min_salary))
@@ -132,3 +136,127 @@ max_salary_df <- data.frame(Level = names(max_salary), MaxSalary = unlist(max_sa
 print(min_salary_df)
 print(max_salary_df)
 
+###########################################################################################################################
+quantile(PM_national$`Bill Rate`, probs = seq(.075,.925, by = .05), na.rm = TRUE)
+
+# Outer loop: Iterate over each unique value in the Quarter column
+for (year in unique(PM_national$Year)) {
+  
+  # Middle loop: Iterate over each unique value in the Time column
+  for (time in unique(PM_national$Time)) {
+    
+    # Inner loop: Iterate over each unique value in the Level column
+    for (level in unique(PM_national$Level)) {
+      
+      # Filter the data for the current combination of Quarter, Time, and Level
+      subset_data <- PM_national[PM_national$Time == time & PM_national$Level == level & PM_national$Year == year, ]
+      
+      # Calculate the 7.5% and 92.5% quantiles of the Bill Rate
+      #quantiles <- quantile(subset_data$Bill_Rate, probs = c(0.075, 0.925), na.rm = TRUE)
+      
+      min_salary[[level]] <- quantile(subset_data$`Bill Rate`, probs = 0.075, na.rm = TRUE)
+      max_salary[[level]] <- quantile(subset_data$`Bill Rate`, probs = 0.925, na.rm = TRUE)
+      
+      # Store the results in a list
+      #results[[paste(quarter, time, level, sep = "_")]] <- quantiles
+    }
+  }
+}
+
+# Convert the results list to a data frame for easier viewing
+#results_df <- do.call(rbind, lapply(names(results), function(x) {
+#  data.frame(quarter_time_level = x, Q7.5 = results[[x]][1], Q92.5 = results[[x]][2])
+#}))
+
+# Print the results
+#print(results_df)
+
+min_salary_df <- data.frame(MinSalary = unlist(min_salary))
+max_salary_df <- data.frame(MaxSalary = unlist(max_salary))
+
+# Convert the lists to data frames for better readability
+min_salary_df <- data.frame(Level = names(min_salary), MinSalary = unlist(min_salary))
+max_salary_df <- data.frame(Level = names(max_salary), MaxSalary = unlist(max_salary))
+
+# Print the results
+print(min_salary_df)
+print(max_salary_df)
+
+
+###################################################################################################################################
+# Assuming your dataset is named 'data' and has columns 'Quarter', 'Time', 'Level', and 'Bill_Rate'
+
+# Create an empty list to store the results
+results <- list()
+
+# Outer loop: Iterate over each unique value in the Quarter column
+for (q in unique(data$Quarter)) {
+  
+  # Middle loop: Iterate over each unique value in the Time column
+  for (t in unique(data$Time)) {
+    
+    # Inner loop: Iterate over each unique value in the Level column
+    for (l in unique(data$Level)) {
+      
+      # Filter the data for the current combination of Quarter, Time, and Level
+      subset_data <- data[data$Quarter == q & data$Time == t & data$Level == l, ]
+      
+      # Calculate the 7.5% and 92.5% quantiles of the Bill Rate
+      quantiles <- quantile(subset_data$Bill_Rate, probs = c(0.075, 0.925), na.rm = TRUE)
+      
+      # Store the results in a list
+      results[[paste(q, t, l, sep = "_")]] <- quantiles
+    }
+  }
+}
+
+# Convert the results list to a data frame for easier viewing
+results_df <- do.call(rbind, lapply(names(results), function(x) {
+  data.frame(Quarter_Time_Level = x, Q7.5 = results[[x]][1], Q92.5 = results[[x]][2])
+}))
+
+# Print the results
+print(results_df)
+
+############################################################################################################################################
+
+subsets_by_quarter<- split(PM_national, PM_national$Date)
+names(subsets_by_quarter)
+
+subsets_by_year <- split(PM_national, PM_national$Year)
+names(subsets_by_year)
+
+
+PM_national_Reg_2024 <- PM_national[which(PM_national[,3]=='Reg' & PM_national[,8]==2024),] #subsetting PM data with Regular time
+PM_national_OT_2024 <- PM_national[which(PM_national[,3]=='OT'& PM_national[,8]==2024),] #subsetting PM data with overtime
+PM_national_2T_2024 <- PM_national[which(PM_national[,3]=='2T'& PM_national[,8]==2024),] #subsetting PM data with double time
+
+# Calculating range for Reg 2024
+# Initialize lists to store results
+min_salary <- list()
+max_salary <- list()
+
+# Loop over each level group
+for (level in levels_groups) {
+  # Subset the data for the current trade group
+  subset_level <- PM_national_Reg_2024[PM_national_Reg_2024$Level == level, ]
+  
+  # Calculate the min and max salary for the current trade group
+  
+  #min_salary[[level]] <- min(subset_level[,9])
+  #max_salary[[level]] <- max(subset_level[,9])
+  
+  min_salary[[level]] <- quantile(subset_level$`Bill Rate`, probs = 0.05)
+  max_salary[[level]] <- quantile(subset_level$`Bill Rate`, probs = 0.95)
+}
+
+min_salary_df <- data.frame(MinSalary = unlist(min_salary))
+max_salary_df <- data.frame(MaxSalary = unlist(max_salary))
+
+# Convert the lists to data frames for better readability
+min_salary_df <- data.frame(Level = names(min_salary), MinSalary = unlist(min_salary))
+max_salary_df <- data.frame(Level = names(max_salary), MaxSalary = unlist(max_salary))
+
+# Print the results
+print(min_salary_df)
+print(max_salary_df)
